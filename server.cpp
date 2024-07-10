@@ -50,14 +50,14 @@ int main()
     int a=WSAStartup(MAKEWORD(2,2),&data);
     if(a)
     {
-        freopen("erro.txt","w",stdout);
+        freopen("error.txt","w",stdout);
         cout<<"初始化错误，小问题"<<'\n';
         return 0;
     }
     SOKET sersock=soket(AF_INET,SOCK_STREAM,0);
     if(sock==-1)
     {
-        freopen("erro.txt","w",stdout);
+        freopen("error.txt","w",stdout);
         cout<<"创建套接字错误，小问题"<<'\n';
         return 0;
     }
@@ -68,14 +68,14 @@ int main()
     a=bind(sersock,(sockaddr*)&addr,sizeof(addr));
     if(a==-1)
     {
-        freopen("erro.txt","w",stdout);
+        freopen("error.txt","w",stdout);
         cout<<"bind监听问题，小问题"<<'\n';
         return 0;
     }
     a=listen(sock,30);
     if(a==-1)
     {
-        freopen("erro.txt","w",stdout);
+        freopen("error.txt","w",stdout);
         cout<<"listen监听问题，小问题"<<'\n';
         return 0;
     }
@@ -89,9 +89,10 @@ int main()
         sockcli[i]=accept(sersock,&addrcli[i],&len);
         if(sockcli==-1)
         {
-        freopen("erro.txt","w",stdout);
-        cout<<"连接问题，小问题"<<'\n';
-        return 0;
+        freopen("error.txt","w",stdout);
+        cout<<i<<"连接问题，小问题"<<'\n';
+        i--;
+        continue;
         }
         else
         {
