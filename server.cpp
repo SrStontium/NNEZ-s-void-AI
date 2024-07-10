@@ -1,15 +1,47 @@
 #include <bits/stdc++.h>
 #include <thread>
 #include <Winsock2.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <setjmp.h>
+#include <signal.h>
+#include <mutex>
 #pragma comment(lib,"ws2_32.lib");
 
 using namespace std;
 
+std::mutex mtx;
+
 thread cli[31];
 
-void meeting(int id)
-{
+int i;
 
+void meeting(int id，SOCKET s)
+{
+    char welc[]="连接成功"；
+    int r;
+    char messages[1024]={'\0'};
+    int e=send(s,welc,strlen(welc),0);
+    while(1)
+    {
+        r=recv(s,mesages,sizeof(messages),0);
+        if(r<=0)
+        {
+            break;
+        }
+        //假装已经调用了ai
+        char ans[]="答案";
+        int se=send(s,ans,sizeof(ans),0);
+        memset(messages,'\0',sizeof(messages));
+    }
+    std::lock_guard<std::mutex> lock(mtx);
+    i=i-1;
+    for(int j=id;j<=i;j++)
+    {
+        cli[j+1]=cli[j];
+    }
+    closesocket(s);
 }
 
 int main()
@@ -52,7 +84,7 @@ int main()
     sockaddr addrcli[31];
     int len=sizeof(addrcli[1]);
     SOCKET sockcli[31];
-    for(int i=1;i<=30;i++)
+    for(i=1;i<=30;i++)
     {
         sockcli[i]=accept(sersock,&addrcli[i],&len);
         if(sockcli==-1)
@@ -63,9 +95,8 @@ int main()
         }
         else
         {
-            cli[i]=thread(meeting);
+            cli[i]=thread(meeting,i,sockcli[i]);
         }
-
     }
     return 0;
 }
