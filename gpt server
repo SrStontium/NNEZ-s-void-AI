@@ -1,0 +1,113 @@
+#include <iostream>
+#include <thread>
+#include <winsock2.h>
+#include <mutex>
+
+#pragma comment(lib, "ws2_32.lib")
+
+using namespace std;
+
+std::mutex mtx;
+
+thread cli[31];
+
+int i;
+
+void meeting(int id, SOCKET s)
+{
+    char welc[] = "连接成功";
+    int r;
+    char messages[1024] = {'\0'};
+    int e = send(s, welc, strlen(welc), 0);
+    while (1)
+    {
+        r = recv(s, messages, sizeof(messages), 0);
+        if (r <= 0)
+        {
+            break;
+        }
+        // 假装已经调用了ai
+        char ans[] = "答案";
+        int se = send(s, ans, strlen(ans), 0);
+        memset(messages, '\0', sizeof(messages));
+    }
+    std::lock_guard<std::mutex> lock(mtx);
+    i = i - 1;
+    for (int j = id; j < i; j++)
+    {
+        cli[j] = move(cli[j + 1]);
+    }
+    closesocket(s);
+}
+
+int main()
+{
+    WSADATA data;
+    int a = WSAStartup(MAKEWORD(2, 2), &data);
+    if (a)
+    {
+        freopen("error.txt", "w", stdout);
+        cout << "初始化错误，小问题" << '\n';
+        return 0;
+    }
+
+    SOCKET sersock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sersock == INVALID_SOCKET)
+    {
+        freopen("error.txt", "w", stdout);
+        cout << "创建套接字错误，小问题" << '\n';
+        return 0;
+    }
+
+    sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(8080); // 定义一个端口号，例如8080
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+    a = bind(sersock, (sockaddr*)&addr, sizeof(addr));
+    if (a == SOCKET_ERROR)
+    {
+        freopen("error.txt", "w", stdout);
+        cout << "bind监听问题，小问题" << '\n';
+        return 0;
+    }
+
+    a = listen(sersock, 30);
+    if (a == SOCKET_ERROR)
+    {
+        freopen("error.txt", "w", stdout);
+        cout << "listen监听问题，小问题" << '\n';
+        return 0;
+    }
+
+    sockaddr_in addrcli[31];
+    int len = sizeof(addrcli[1]);
+    SOCKET sockcli[31];
+
+    for (i = 0; i < 30; i++)
+    {
+        sockcli[i] = accept(sersock, (sockaddr*)&addrcli[i], &len);
+        if (sockcli[i] == INVALID_SOCKET)
+        {
+            freopen("error.txt", "w", stdout);
+            cout << i << "连接问题，小问题" << '\n';
+            i--;
+            continue;
+        }
+        else
+        {
+            cli[i] = thread(meeting, i, sockcli[i]);
+        }
+    }
+
+    for (int j = 0; j < 30; j++)
+    {
+        if (cli[j].joinable())
+        {
+            cli[j].join();
+        }
+    }
+
+    WSACleanup();
+    return 0;
+}
