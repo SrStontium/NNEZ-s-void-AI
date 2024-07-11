@@ -19,7 +19,7 @@ void loop() {
     const char* ServerAddress="127.0.0.1";
     int ServerPort=11451;
     //尝试连接服务器
-    if(!client.connect(server, port))
+    if(!client.connect(ServerAddress, ServerPort))
     {
         Serial.println("与服务器断开连接，正在尝试重新连接...");
         delay(5000); // 等待一段时间再尝试连接（这里是 5 秒）
