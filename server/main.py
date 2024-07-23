@@ -6,7 +6,7 @@ import json
 app = FastAPI()
 
 
-@app.get("/wifi/data")
+@app.get("/wifi/data/get")
 async def get_wifi_data(mid: str):
     with open(f"{mid}.json", "r", encoding="UTF-8") as f:
         content = f.read()
@@ -14,7 +14,7 @@ async def get_wifi_data(mid: str):
     return data
 
 
-@app.get("/wifi/send")
+@app.get("/wifi/data/send")
 async def send_wifi_data(ssid: str, password: str, mid: str):
     ssid_decode = hex.hex_to_text(ssid)
     password_decode = hex.hex_to_text(password)
@@ -44,7 +44,7 @@ async def send_wifi_data(ssid: str, password: str, mid: str):
     }
 
 
-@app.get("/wifi/reset")
+@app.get("/wifi/data/reset")
 async def reset_wifi_data(mid: str):
     mid_decode = hex.hex_to_text(mid)
     with open(f"{mid}.json", "w", encoding="UTF-8") as f:
