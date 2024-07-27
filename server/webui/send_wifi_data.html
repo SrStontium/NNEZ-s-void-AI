@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WiFi 连接</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    background-color: #f4f4f9;
+  }
+  form {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    width: 300px;
+  }
+  input[type="text"], input[type="password"] {
+    width: calc(100% - 20px);
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  button {
+    width: 100%;
+    padding: 10px;
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  button:hover {
+    background-color: #0056b3;
+  }
+</style>
+</head>
+<body>
+<form id="wifiForm">
+  <label for="ssid">WiFi名称:</label>
+  <input type="text" id="ssid" name="ssid" required>
+
+  <label for="password">密码:</label>
+  <input type="password" id="password" name="password" required>
+
+  <label for="mid">机器序列号:</label>
+  <input type="text" id="mid" name="mid" required>
+
+  <button type="submit">Connect</button>
+</form>
+
+<script>
+  document.getElementById('wifiForm').addEventListener('submit', function(event) {
+    event.preventDefault(); // Prevent the default form submission
+
+    const ssid = document.getElementById('ssid').value;
+    const password = document.getElementById('password').value;
+    const mid = document.getElementById('mid').value;
+
+    const params = {
+      ssid: convertToHex(ssid),
+      password: convertToHex(password),
+      mid: convertToHex(mid)
+    };
+
+    fetch('/wifi/send?' + new URLSearchParams(params), {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('Success:', data);
+      alert('成功发送数据!');
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('发送数据时出现错误。');
+    });
+  });
+
+  function convertToHex(text) {
+    const encoder = new TextEncoder();
+    const encoded = encoder.encode(text);
+    let hexString = '';
+    for (let i = 0; i < encoded.length; i++) {
+        hexString += encoded[i].toString(16).padStart(2, '0');
+    }
+    return hexString;
+  }
+</script>
+</body>
+</html>
