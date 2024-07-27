@@ -70,7 +70,7 @@
       mid: convertToHex(mid)
     };
 
-    fetch('/wifi/send?' + new URLSearchParams(params), {
+    fetch('/wifi/data/send?' + new URLSearchParams(params), {
       method: 'GET',
       headers: {
         'Accept': 'application/json'

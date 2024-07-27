@@ -54,7 +54,7 @@ async def send_wifi_data(ssid: str, password: str, mid: str):
         "mid": mid
     }
 
-@app.get("/wifi/send/ui")
+@app.get("/wifi/data/send/ui")
 async def send_wifi_data_gui():
     return FileResponse("./webui/send_wifi_data.html")
 

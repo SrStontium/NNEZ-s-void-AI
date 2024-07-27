@@ -36,6 +36,3 @@ def text_to_hex(text):
     # Convert the byte string to a hexadecimal string
     hex_string = byte_string.hex()
     return hex_string
-
-
-print(hex_to_text("e69d8e"))
