@@ -1,3 +1,9 @@
+#include <driver/i2s.h>
+#define I2S_WS 8
+#define I2S_SD 10
+#define I2S_SCK 9
+#define I2S_PORT I2S_NUM_0
+#define bufferLen 128
 #include <WiFi.h>
 
 // 替换为你的WiFi SSID和密码
@@ -8,8 +14,41 @@ const char* password = "12345678";
 const char* serverAddress = "152.70.254.139";
 const int serverPort = 19896; // 通常是80或443等标准端口
 
+//麦克风音频储存
+int16_t sBuffer[bufferLen];
+
+void i2s_install(){
+  const i2s_config_t i2s_config = {
+    .mode = i2s_mode_t(I2S_MODE_MASTER | I2S_MODE_RX),
+    .sample_rate = 44100,
+    .bits_per_sample = i2s_bits_per_sample_t(16),
+    .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
+    .communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_STAND_I2S),
+    .intr_alloc_flags = 0, // default interrupt priority
+    .dma_buf_count = 8,
+    .dma_buf_len = bufferLen,
+    .use_apll = false
+  };
+
+  i2s_driver_install(I2S_PORT, &i2s_config, 0, NULL);
+}
+
+void i2s_setpin(){
+  const i2s_pin_config_t pin_config = {
+    .bck_io_num = I2S_SCK,
+    .ws_io_num = I2S_WS,
+    .data_out_num = -1,
+    .data_in_num = I2S_SD
+  };
+
+  i2s_set_pin(I2S_PORT, &pin_config);
+}
+
 void setup() {
     Serial.begin(115200);
+    i2s_install();//安装并配置I2S驱动
+    i2s_setpin();//设置I2S引脚
+    i2s_start(I2S_PORT);
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
@@ -25,13 +64,27 @@ void loop() {
         return;
     }
     Serial.println("Connected to server");
+    //音频读取
+    size_t bytesIn = 0;
+    esp_err_t result = i2s_read(I2S_PORT, &sBuffer, bufferLen, &bytesIn, portMAX_DELAY);
+    if (result == ESP_OK)
+    {
+        int samples_read = bytesIn / 8;
+        if (samples_read > 0) {
+            // 向服务器发送消息
+            Serial.println("Sending message to server...");
+            Serial.flush(); // 确保之前的输出都已经完成
+            client.println("Mystic Light Quest");
+            Serial.println("Mystic Light Quest");
+            for(int i=0;i<samples_read;i++)
+                client.print(sBuffer[i]),Serial.print(sBuffer[i]);
+            client.print("\n");
+            Serial.print("Message sent.");
+            Serial.println(""); // 换行符以便更清晰读取串口输出
+        }
+    }
+
     
-    // 向服务器发送消息
-    Serial.println("Sending message to server...");
-    Serial.flush(); // 确保之前的输出都已经完成
-    client.println("Mystic Light Quest");
-    Serial.print("Message sent: "); Serial.print("Mystic Light Quest"); // 在串口监视器上打印发送的消息内容
-    Serial.println(""); // 换行符以便更清晰读取串口输出
     
     // 读取来自服务器的消息并打印在串口监视器上
     while (client.connected()) { // 保持连接状态，持续读取数据
