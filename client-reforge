@@ -1,39 +1,43 @@
 #include <driver/i2s.h>
+#include <WiFi.h>
+
 #define I2S_WS 8
 #define I2S_SD 10
 #define I2S_SCK 9
 #define I2S_PORT I2S_NUM_0
 #define bufferLen 128
-#include <WiFi.h>
 
 // 替换为你的WiFi SSID和密码
 const char* ssid = "504";
 const char* password = "12345678";
 
 // 服务器地址和端口
-const char* serverAddress = "152.70.254.139";
-const int serverPort = 19896; // 通常是80或443等标准端口
+const char* serverAddress = "180.184.96.142";
+const int serverPort = 19896; // 标准端口通常是80或443
 
-//麦克风音频储存
+// 麦克风音频缓冲区
 int16_t sBuffer[bufferLen];
 
-void i2s_install(){
+void i2s_install() {
   const i2s_config_t i2s_config = {
-    .mode = i2s_mode_t(I2S_MODE_MASTER | I2S_MODE_RX),
+    .mode = I2S_MODE_MASTER | I2S_MODE_RX,
     .sample_rate = 44100,
-    .bits_per_sample = i2s_bits_per_sample_t(16),
+    .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
     .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
-    .communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_STAND_I2S),
-    .intr_alloc_flags = 0, // default interrupt priority
+    .communication_format = I2S_COMM_FORMAT_STAND_I2S,
+    .intr_alloc_flags = 0, // 默认中断优先级
     .dma_buf_count = 8,
     .dma_buf_len = bufferLen,
     .use_apll = false
   };
 
-  i2s_driver_install(I2S_PORT, &i2s_config, 0, NULL);
+  esp_err_t err = i2s_driver_install(I2S_PORT, &i2s_config, 0, NULL);
+  if (err != ESP_OK) {
+    Serial.printf("安装I2S驱动失败: %s\n", esp_err_to_name(err));
+  }
 }
 
-void i2s_setpin(){
+void i2s_setpin() {
   const i2s_pin_config_t pin_config = {
     .bck_io_num = I2S_SCK,
     .ws_io_num = I2S_WS,
@@ -41,72 +45,72 @@ void i2s_setpin(){
     .data_in_num = I2S_SD
   };
 
-  i2s_set_pin(I2S_PORT, &pin_config);
+  esp_err_t err = i2s_set_pin(I2S_PORT, &pin_config);
+  if (err != ESP_OK) {
+    Serial.printf("设置I2S引脚失败: %s\n", esp_err_to_name(err));
+  }
 }
 
 void setup() {
-    Serial.begin(115200);
-    i2s_install();//安装并配置I2S驱动
-    i2s_setpin();//设置I2S引脚
-    i2s_start(I2S_PORT);
-    WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
-    }
-    Serial.println("WiFi connected");
+  Serial.begin(115200);
+  i2s_install(); // 安装并配置I2S驱动
+  i2s_setpin();  // 设置I2S引脚
+  i2s_start(I2S_PORT);
+
+  WiFi.begin(ssid, password);
+  Serial.print("连接到WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi连接成功");
 }
 
 void loop() {
-    WiFiClient client;
-    if (!client.connect(serverAddress, serverPort)) {
-        Serial.println("Connection to server failed");
-        return;
-    }
-    Serial.println("Connected to server");
-    //音频读取
-    size_t bytesIn = 0;
-    esp_err_t result = i2s_read(I2S_PORT, &sBuffer, bufferLen, &bytesIn, portMAX_DELAY);
-    if (result == ESP_OK)
-    {
-        int samples_read = bytesIn / 8;
-        if (samples_read > 0) {
-            // 向服务器发送消息
-            Serial.println("Sending message to server...");
-            Serial.flush(); // 确保之前的输出都已经完成
-            client.println("Mystic Light Quest");
-            Serial.println("Mystic Light Quest");
-            for(int i=0;i<samples_read;i++)
-                client.print(sBuffer[i]),Serial.print(sBuffer[i]);
-            client.print("\n");
-            Serial.print("Message sent.");
-            Serial.println(""); // 换行符以便更清晰读取串口输出
-        }
-    }
+  WiFiClient client;
+  if (!client.connect(serverAddress, serverPort)) {
+    Serial.println("连接到服务器失败");
+    delay(3000);
+    return;
+  }
 
-    
-    
-    // 读取来自服务器的消息并打印在串口监视器上
-    while (client.connected()) { // 保持连接状态，持续读取数据
-        char c = client.read(); // 读取单个字符，直到遇到换行符或连接断开
-        if (c != -1) { // 如果读取成功（不是-1，表示没有错误）
-            Serial.write(c); // 将字符打印到串口监视器上
-            if (c == '\n' || c == '\r') { // 检测换行符或回车符，判断是否完整的一行消息已经接收完毕（这里可以根据服务器响应的格式进行相应调整）
-                String line = ""; // 用于存储接收到的消息行内容
-                while (client.available()) { // 继续读取直到行结束或连接断开
-                    char ch = client.read(); // 读取下一个字符，并追加到行中
-                    if (ch == '\n' || ch == '\r') break; // 如果遇到换行符或回车符，则结束这一行的读取并处理该行数据（注意，这里的处理逻辑需要根据你的服务器响应格式来编写）
-                    line += ch; // 将字符追加到字符串中以构建完整的行消息内容（根据实际需求可能还需要进行适当的转义或解析）
-                }
-                Serial.println(line); // 在串口监视器上打印接收到的消息内容（这里假设服务器响应的格式是标准的文本行）
-            } else if (c == '\r' && c == '\n') { // 如果同时读取到回车和换行符，则可能是一个完整的消息结束标志（这里只是一个假设，需要根据实际响应格式调整）
-                // 在这里处理一个完整的消息（如果需要的话）例如可以发送到另一个处理函数进行解析等操作。这需要根据实际的服务器响应格式来编写相应的逻辑。
-            } else { // 如果不是换行符或回车符，则继续等待其他字符的输入（根据实际需求可能需要更复杂的逻辑来处理不完整的数据或错误情况）
-                // 这里只是简单地继续读取并打印字符，实际情况下可能需要根据需要处理错误情况或缓冲区管理等问题。
-            }
-        } else { // 如果读取失败（可能是连接断开或其他错误），则退出循环并关闭连接。这只是一个简单的示例，实际情况下可能需要更复杂的错误处理逻辑。
-            break; // 或者根据需要选择合适的错误处理方式。例如可以尝试重新连接、延迟重试等操作。
-        }
+  Serial.println("已连接到服务器");
+
+  size_t bytesIn = 0;
+  esp_err_t result = i2s_read(I2S_PORT, &sBuffer, bufferLen, &bytesIn, portMAX_DELAY);
+  if (result == ESP_OK) {
+    int samples_read = bytesIn / sizeof(int16_t);
+    if (samples_read > 0) {
+      Serial.println("发送消息到服务器...");
+      client.println("Mystic Light Quest");
+      Serial.println("Mystic Light Quest");
+
+      for (int i = 0; i < samples_read; i++) {
+        client.print(sBuffer[i]);
+        client.print(" ");
+        Serial.print(sBuffer[i]);
+        Serial.print(" ");
+      }
+      Serial.println("\n消息发送完毕。");
+
+      Serial.print("播放...\n");
+      esp_err_t oresult = i2s_write(I2S_PORT, &sBuffer, bufferLen, &bytesIn, portMAX_DELAY);
+      if (oresult != ESP_OK) {
+        Serial.printf("写入音频数据失败: %s\n", esp_err_to_name(oresult));
+      }
     }
-    client.stop(); // 断开与服务器的连接。这一步很重要，在每次循环结束时都要关闭客户端连接。注意在实际代码中可能需要进行适当的异常处理来管理可能的网络异常或断开等问题。下面的注释说明了更详细的情况，但没有在此示例代码中包含它们以保持代码简洁性。) 在实际应用中应该添加更全面的错误处理和连接管理逻辑来确保网络的稳定性和健壮性。这包括处理连接中断、超时、重连等问题以及适当地释放资源以避免内存泄漏等潜在问题。请根据您的具体需求和项目
+  } else {
+    Serial.printf("读取音频数据失败: %s\n", esp_err_to_name(result));
+  }
+
+  while (client.connected()) {
+    if (client.available()) {
+      char c = client.read();
+      Serial.write(c);
+    }
+  }
+
+  client.stop();
+  Serial.println("与服务器断开连接");
+  delay(5000); // 等待后再重新连接或进行其他操作
 }
